@@ -1,0 +1,251 @@
+#define _CRT_SECURE_NO_WARNINGS
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <graphics.h>
+#include <conio.h>
+/************************************
+*   坐标属性
+*	蛇的属性
+*	食物属性
+***/
+HWND hwnd = NULL;		//用来表示主窗口
+
+//坐标属性
+typedef struct pointxy
+{
+	int x;
+	int y;
+}Mypoint;
+//蛇的属性
+struct Snake
+{
+	int num;    //蛇的节数
+	Mypoint xy[100];  //蛇的最多有100节
+	char position;   //蛇的方向
+}snake;
+struct Food
+{
+	Mypoint fdxy;  //食物坐标
+	int grade;     //得的分数
+	int flag;		//食物是否存在的标记
+}food;
+//蛇的移动方向枚举出来
+enum movePosition {right=72,left=75,down=77,up=80};
+/*********
+*
+*初始化蛇:initSnake
+*画蛇:drawSnake
+*移动蛇:moveSnake
+*按键处理:keyDown
+*初始化食物:initFood
+*画食物:drawFood
+* 吃食物:eatFood
+* 蛇死亡:snakeDie
+* 分数展现:showGrade
+* 游戏暂停函数:pauseGame
+**********/
+void initSnake();
+void drawSnake();
+void moveSnake();
+void keyDown();
+void initFood();
+void drawFood();
+void eatFood();
+int snakeDie();
+void showGrade();
+void pauseGame();
+int main()
+{
+
+	srand((unsigned int)time(NULL));  //随机函数种子
+	hwnd = initgraph(640,480);  
+	setbkcolor(WHITE);		//设置窗口颜色为白色
+	BeginBatchDraw();		//刷屏	开始批量绘制,任何绘制操作都将暂时不输出到屏幕上
+	initSnake();
+	
+	while (1)
+	{
+		FlushBatchDraw();	//刷屏	执行未完成的绘制任务
+		cleardevice();			//如果颜色没变,刷新一下
+		
+		drawSnake();
+
+		if (snakeDie())break;		//返回一,游戏结束
+		if (food.flag==0)initFood();		//如果食物不存在才重新生成食物
+		drawFood();
+		eatFood();
+		showGrade();
+		moveSnake();
+
+		while (_kbhit())			//检测是否有按键按下
+		{
+			pauseGame();
+			keyDown();
+		}
+		
+		Sleep(60);
+	}
+	getchar();
+	EndBatchDraw();		//刷屏   结束批量绘制,并执行未完成的绘制任务
+	closegraph();
+	return 0;
+}
+//蛇的模块
+void initSnake()
+{
+	snake.xy[2].x = 0;
+	snake.xy[2].y = 0;
+
+	snake.xy[1].x = 10;
+	snake.xy[1].y = 0;
+
+	snake.xy[0].x = 20;
+	snake.xy[0].y = 0;
+
+	snake.num = 3;
+	snake.position = right;
+	food.flag = 0;			//初始化食物不存在的标志
+	food.grade = 0;			//初始化分数
+}
+void drawSnake()
+{
+	for (int i = 0; i < snake.num; i++)
+	{
+		setlinecolor(BLACK);  //矩形边框线的颜色为黑色
+		setfillcolor(RGB(rand()%255,rand()%255,rand()%255));  //蛇的颜色
+		//画矩形
+		fillrectangle(snake.xy[i].x,snake.xy[i].y, snake.xy[i].x+10, snake.xy[i].y+10 );
+	}
+
+}
+void moveSnake()
+{
+	//除了第一节之外,后面每一节都是前面一节的坐标
+	for (int i = snake.num - 1; i > 0; i--)
+	{
+		snake.xy[i].x = snake.xy[i - 1].x;
+		snake.xy[i].y = snake.xy[i - 1].y;
+	}
+	//第一节的处理
+	switch (snake.position)
+	{
+	case right :
+		snake.xy[0].x += 10;
+		break;
+	case left:
+		snake.xy[0].x -= 10;
+		break;
+	case down:
+		snake.xy[0].y += 10;
+		break;
+	case up:
+		snake.xy[0].y -= 10;
+		break;
+	default :
+		break;
+	}
+}
+void keyDown()
+{
+	char userkey = 0;
+	/*严重性	代码	说明	项目	文件	行	禁止显示状态
+	错误	C4996	'getch': The POSIX name for this item is deprecated.Instead,
+	use the ISO Cand C++ conformant name : _getch.See online help for details.Gluttonous Snake	D : \All files of Visual Studio\c语言project\Gluttonous Snake\Gluttonous Snake.cpp	123
+	*/
+	userkey = _getch();
+	switch (userkey)
+	{
+	case right:
+		if (snake.position != down)
+			snake.position = up;
+		break;
+	case left:
+		if (snake.position != right)
+			snake.position = left;
+		break;
+	case down:
+		if (snake.position != left)
+			snake.position = right;
+		break;
+	case up:
+		if (snake.position != up)
+			snake.position = down;
+		break;
+	}
+}
+//食物随机出现的模块
+void initFood()
+{
+	//食物的产生随机坐标
+	food.fdxy.x = rand() % 65 * 10;
+	food.fdxy.y = rand() % 48 * 10;
+
+	//如果食物坐标与蛇的节坐标重合,重新产生食物
+	for (int i = snake.num; i > 0; i--)
+	{
+		if (food.fdxy.x == snake.xy[i].x && food.fdxy.y == snake.xy[i].y)
+		{
+			/*food.fdxy.x = rand() % 65 * 10;
+			food.fdxy.y = rand() % 48 * 10;*/
+			initFood();
+		}
+
+	}
+	food.flag = 1;      //食物存在标志
+}
+void drawFood()
+{
+	setlinecolor(BLACK);  //矩形边框线的颜色为黑色
+	setfillcolor(RGB(rand() % 255, rand() % 255, rand() % 255));  //食物的颜色
+	fillrectangle(food.fdxy.x, food.fdxy.y, food.fdxy.x + 10, food.fdxy.y + 10);//画出食物的矩形
+	//fillcircle(food.fdxy.x, food.fdxy.y,5);
+}
+//吃食物模块
+void eatFood()
+{
+	if (snake.xy[0].x == food.fdxy.x && snake.xy[0].y == food.fdxy.y)
+	{
+		snake.num++;			//蛇变长一节,
+		food.grade += 10;	//分数加10,
+		food.flag = 0;		//	食物不存在
+	}
+}
+//蛇死亡模块
+int snakeDie()
+{
+	if (snake.xy[0].x > 640-10 || snake.xy[0].x < 0 || snake.xy[0].y > 480-10 || snake.xy[0].y < 0)
+	{
+		outtextxy(200,200,"You hit the wall");
+		MessageBox(hwnd, "End!", "撞墙了", MB_OK);
+		return 1;			 //返回1,撞墙游戏结束
+	}
+	for (int i = 1; i < snake.num; i++)
+	{
+		if (snake.xy[0].x == snake.xy[i].x && snake.xy[0].y == snake.xy[i].y)
+		{
+			outtextxy(200, 200, "You have died by youself");
+			MessageBox(hwnd, "End!", "自杀", MB_OK);
+			return 1;			 //返回1,自杀游戏结束
+		}
+	}
+	return 0;
+}
+//分数
+void showGrade()
+{
+	char grade[100] = "";
+	sprintf(grade, "%d", food.grade);
+	setbkmode(TRANSPARENT);
+	settextcolor(LIGHTBLUE);
+	outtextxy(550, 10, "Grade:");
+	outtextxy(550+50, 10, grade);
+}
+//游戏暂停
+void pauseGame()
+{
+	if (_getch() == 32)
+	{
+		while (_getch() != 32);  //按键不是空格,就一直暂停
+	}
+}
